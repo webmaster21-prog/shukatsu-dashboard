@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>就活ダッシュボード v3</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:#f5f7fb;color:#172033}
+header{background:#172554;color:#fff;padding:22px 18px}
+header h1{margin:0 0 6px;font-size:24px}
+header p{margin:0;opacity:.82;font-size:13px}
+main{max-width:1000px;margin:auto;padding:16px}
+.card{background:#fff;border:1px solid #dfe5ef;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #00000008}
+.search{display:flex;gap:8px}
+input,select,button{font:inherit}
+input{flex:1;min-width:0;padding:13px;border:1px solid #ccd5e3;border-radius:10px}
+button{border:0;border-radius:10px;padding:11px 14px;cursor:pointer;background:#1d4ed8;color:white;font-weight:700}
+button.sub{background:#eef2ff;color:#1e3a8a}
+button.gray{background:#eef1f5;color:#334155}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;background:#eef2f7}
+.red{background:#fee2e2;color:#991b1b}.yellow{background:#fef3c7;color:#92400e}
+.graybadge{background:#e5e7eb;color:#374151}
+.item{padding:14px;border:1px solid #e2e8f0;border-radius:13px;margin-top:10px}
+.item h3{margin:0 0 8px;font-size:16px}
+.meta{font-size:13px;color:#64748b;line-height:1.8}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.notice{font-size:12px;color:#64748b;line-height:1.6}
+.todo{border-left:5px solid #ef4444}
+.empty{color:#64748b;text-align:center;padding:20px}
+.small{font-size:12px;color:#64748b}
+</style>
+</head>
+<body>
+<header>
+<h1>🎓 就活ダッシュボード</h1>
+<p>締切を見逃さないための、大学生向け就活管理ツール</p>
+</header>
+<main>
+
+<section class="card">
+<h2>🔎 企業・イベントを探す</h2>
+<div class="search">
+<input id="q" placeholder="例：JR東海 / 三菱電機 / 電気システム">
+<button onclick="searchCompany()">検索</button>
+</div>
+<div class="filters">
+<button class="sub" onclick="officialSearch()">🌐 公式採用ページ</button>
+<button class="sub" onclick="internSearch()">🧑‍💻 インターン</button>
+<button class="gray" onclick="showAll()">📋 登録データ</button>
+</div>
+<p class="notice">「検索」は登録データを探しつつ、必要なら公式情報を検索できます。外部ページの情報は自動取得せず、確認できないものは「未確認」として残します。</p>
+</section>
+
+<section class="card todo">
+<h2>🚨 今日やること</h2>
+<div id="todo"></div>
+</section>
+
+<section class="card">
+<h2>📌 登録データ</h2>
+<div class="filters">
+<select id="field" onchange="render()">
+<option value="">分野すべて</option>
+<option>電気・システム</option>
+<option>鉄道インフラ</option>
+<option>メーカー</option>
+<option>電力</option>
+<option>運輸</option>
+<option>未確認</option>
+</select>
+<select id="status" onchange="render()">
+<option value="">状況すべて</option>
+<option>未応募</option><option>準備中</option><option>応募済み</option><option>選考中</option><option>終了</option>
+</select>
+</div>
+<div id="list"></div>
+</section>
+
+<section class="card">
+<h2>➕ 自分で追加</h2>
+<div class="search">
+<input id="newCompany" placeholder="企業名">
+<input id="newEvent" placeholder="イベント名">
+<input id="newDeadline" type="date">
+</div>
+<div class="actions">
+<button onclick="addItem()">追加</button>
+</div>
+<p class="notice">分野や詳細が分からない場合は「未確認」のまま保存できます。分からない情報を勝手に消しません。</p>
+</section>
+
+</main>
+<script>
+const seed=[
+ {id:1,company:"JR東海",event:"Autumn 3Days Workshop（総合職向け）",field:"運輸",deadline:"2026-10-04",date:"2026-11-05、11/7〜8",status:"未応募",unknown:false},
+ {id:2,company:"JR東海",event:"Autumn 3Days Workshop（プロフェッショナル職向け）",field:"運輸",deadline:"2026-10-12",date:"2026-11-12、11/14〜15",status:"未応募",unknown:false},
+ {id:3,company:"JR東海",event:"超電導リニア ビギナーズセミナー",field:"未確認",deadline:"2026-10-21",date:"2026-10-30 17:30〜20:00",status:"未応募",unknown:true},
+ {id:4,company:"JR東海",event:"Open Company ～運輸系統の仕事～",field:"運輸",deadline:"2026-10-22",date:"2026-11-18",status:"未応募",unknown:false},
+ {id:5,company:"JR西日本",event:"電気システム系統 1Day仕事体験",field:"電気・システム",deadline:"2026-10-09",date:"2026-11-07、11/14、11/28、12/19",status:"未応募",unknown:false}
+];
+let data=JSON.parse(localStorage.getItem("shukatsu_v3")||"null")||seed;
+
+function daysLeft(d){
+ const a=new Date(); a.setHours(0,0,0,0);
+ const b=new Date(d+"T00:00:00");
+ return Math.ceil((b-a)/86400000);
+}
+function deadlineText(d){
+ const n=daysLeft(d);
+ if(n<0)return "締切済み";
+ if(n===0)return "⚠️ 今日が締切";
+ if(n<=7)return "⚠️ あと"+n+"日";
+ return "あと"+n+"日";
+}
+function save(){localStorage.setItem("shukatsu_v3",JSON.stringify(data));}
+function render(){
+ const q=document.getElementById("q").value.trim().toLowerCase();
+ const f=document.getElementById("field").value;
+ const s=document.getElementById("status").value;
+ const arr=data.filter(x=>(!q||(x.company+x.event+x.field).toLowerCase().includes(q))&&(!f||x.field===f)&&(!s||x.status===s));
+ const box=document.getElementById("list");
+ if(!arr.length){box.innerHTML='<div class="empty">該当するデータがありません。<br>情報が未登録なら「自分で追加」から登録できます。</div>';return;}
+ box.innerHTML=arr.map(x=>`
+ <div class="item">
+   <h3>${esc(x.company)} <span class="badge ${x.field==="未確認"?"graybadge":""}">${esc(x.field)}</span> ${x.unknown?'<span class="badge graybadge">❓未確認</span>':''}</h3>
+   <div>${esc(x.event)}</div>
+   <div class="meta">開催：${esc(x.date||"未確認")}<br>締切：${esc(x.deadline)}（${deadlineText(x.deadline)}）<br>応募状況：${esc(x.status)}</div>
+   <div class="actions">
+    <button class="sub" onclick="officialFor('${escAttr(x.company)}')">公式採用ページ</button>
+    <button class="sub" onclick="internFor('${escAttr(x.company)}')">インターン検索</button>
+    <button class="gray" onclick="nextStatus(${x.id})">状況を変更</button>
+    <button class="gray" onclick="removeItem(${x.id})">削除</button>
+   </div>
+ </div>`).join("");
+}
+function renderTodo(){
+ const arr=data.filter(x=>x.status!=="終了").sort((a,b)=>a.deadline.localeCompare(b.deadline)).slice(0,4);
+ document.getElementById("todo").innerHTML=arr.length?arr.map(x=>`<div class="item"><b>${esc(x.company)}</b>｜${esc(x.event)}<div class="meta">${deadlineText(x.deadline)}・締切 ${x.deadline}</div></div>`).join(""):"<div class='empty'>今のところ登録されたタスクはありません。</div>";
+}
+function allRender(){render();renderTodo();}
+function google(url){window.open(url,"_blank","noopener");}
+function officialSearch(){const q=document.getElementById("q").value.trim()||"企業 採用";google("https://www.google.com/search?q="+encodeURIComponent("site:"+guessDomain(q)+" "+q+" 採用 新卒")); }
+function internSearch(){const q=document.getElementById("q").value.trim()||"企業";google("https://www.google.com/search?q="+encodeURIComponent(q+" インターン 2028卒 採用")); }
+function officialFor(c){google("https://www.google.com/search?q="+encodeURIComponent(c+" 新卒 採用 公式"))}
+function internFor(c){google("https://www.google.com/search?q="+encodeURIComponent(c+" インターン 2028卒 公式"))}
+function guessDomain(q){return q.includes("JR東海")?"jr-central.co.jp":q.includes("JR西日本")?"westjr.co.jp":""}
+function searchCompany(){render();document.getElementById("list").scrollIntoView({behavior:"smooth"});}
+function showAll(){document.getElementById("q").value="";document.getElementById("field").value="";document.getElementById("status").value="";render();}
+function nextStatus(id){const order=["未応募","準備中","応募済み","選考中","終了"];const x=data.find(a=>a.id===id);x.status=order[(order.indexOf(x.status)+1)%order.length];save();allRender();}
+function removeItem(id){if(confirm("この登録を削除しますか？")){data=data.filter(x=>x.id!==id);save();allRender();}}
+function addItem(){
+ const c=document.getElementById("newCompany").value.trim(),e=document.getElementById("newEvent").value.trim(),d=document.getElementById("newDeadline").value;
+ if(!c||!e||!d){alert("企業名・イベント名・締切を入力してください");return;}
+ data.push({id:Date.now(),company:c,event:e,field:"未確認",deadline:d,date:"未確認",status:"未応募",unknown:true});
+ save();document.getElementById("newCompany").value="";document.getElementById("newEvent").value="";document.getElementById("newDeadline").value="";allRender();
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function escAttr(s){return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,"&quot;")}
+allRender();
+</script>
+</body>
+</html>
