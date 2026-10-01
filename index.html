@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>就活ダッシュボード</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif;background:#f5f7fb;color:#172033}
+header{background:#172554;color:#fff;padding:20px}.wrap{max-width:900px;margin:auto;padding:14px}
+.card{background:#fff;border:1px solid #e3e8f0;border-radius:16px;padding:16px;margin:12px 0}
+.search{display:grid;grid-template-columns:1fr 48px;gap:8px}.search input{min-width:0;font-size:16px;padding:12px;border:1px solid #ccd5e3;border-radius:10px}.search button{border:0;border-radius:10px;background:#172554;color:white;font-size:19px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.actions button{border:1px solid #d7deea;background:#fff;border-radius:9px;padding:9px 11px}
+.result{border:1px solid #e5e9f0;border-radius:12px;padding:13px;margin-top:10px}.tag{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;margin:2px}.red{background:#fee2e2;color:#991b1b}.green{background:#dcfce7;color:#166534}.gray{background:#eef2f7;color:#475569}
+.small{font-size:12px;color:#64748b}.empty{text-align:center;color:#64748b;padding:25px}
+</style></head>
+<body>
+<header><div class="wrap"><h1 style="margin:0">🎓 就活ダッシュボード</h1><div class="small" style="color:#cbd5e1">公式情報を確認して管理する試作品</div></div></header>
+<main class="wrap">
+<div class="card">
+<h2>🔎 企業・イベントを探す</h2>
+<div class="search"><input id="q" type="search" placeholder="例：JR東海 / 三菱電機 / 電気システム"><button onclick="search()">🔍</button></div>
+<div class="actions">
+<button onclick="official('general')">🌐 公式採用を検索</button>
+<button onclick="official('intern')">🌐 インターンを検索</button>
+<button onclick="showSaved()">📋 登録済み</button>
+</div>
+<p id="msg" class="small">検索すると公式採用ページを探すための検索結果を開きます。</p>
+</div>
+<div id="results" class="card"><h2>📌 確認済みデータ</h2><div id="list"></div></div>
+</main>
+<script>
+const seed=[
+{company:"JR東海",system:"運輸",event:"Autumn 3Days Workshop（総合職向け）",date:"2026/11/5、11/7〜8",deadline:"2026/10/4",ok:true,url:"https://saiyo.jr-central.co.jp/internship/"},
+{company:"JR東海",system:"運輸",event:"Autumn 3Days Workshop（プロフェッショナル職向け）",date:"2026/11/12、11/14〜15",deadline:"2026/10/12",ok:true,url:"https://saiyo.jr-central.co.jp/internship/"},
+{company:"JR東海",system:"車両・機械",event:"超電導リニア ビギナーズセミナー",date:"2026/10/30",deadline:"2026/10/21",ok:true,url:"https://saiyo.jr-central.co.jp/internship/"},
+{company:"JR西日本",system:"電気・システム",event:"電気システム系統 1Day仕事体験",date:"2026/11/7、11/14、11/28、12/19",deadline:"2026/10/9",ok:true,url:"https://www.westjr.co.jp/company/recruit/fresh/internship/1.html"},
+{company:"JR東海",system:"電気・システム",event:"電気・システム系統のイベント",date:"わからない",deadline:"わからない",ok:false,url:"https://saiyo.jr-central.co.jp/internship/"}
+];
+function data(){return JSON.parse(localStorage.getItem("shukatsu")||JSON.stringify(seed))}
+function save(a){localStorage.setItem("shukatsu",JSON.stringify(a))}
+function render(a=data()){
+ document.getElementById("list").innerHTML=a.length?a.map((x,i)=>`<div class="result"><b>${x.company}</b> <span class="tag ${x.system==="電気・システム"?"red":"gray"}">${x.system}</span><span class="tag ${x.ok?"green":"gray"}>${x.ok?"✅確認済み":"❓わからない"}</span><div style="margin-top:6px">${x.event}</div><div class="small">開催：${x.date}　締切：${x.deadline}</div><div style="margin-top:7px"><a href="${x.url}" target="_blank">公式ページ</a></div></div>`).join(""):"<div class='empty'>まだ登録されていません</div>";
+}
+function search(){
+ const q=document.getElementById("q").value.trim();
+ if(!q){document.getElementById("msg").textContent="検索語を入力してください。";return}
+ const a=data().filter(x=>(x.company+x.system+x.event).toLowerCase().includes(q.toLowerCase()));
+ render(a);document.getElementById("msg").textContent=`登録済みデータから「${q}」を検索：${a.length}件`;
+}
+function official(kind){
+ const q=document.getElementById("q").value.trim();
+ if(!q){document.getElementById("msg").textContent="会社名を入力してください。";return}
+ const suffix=kind==="intern"?" (インターン OR 仕事体験 OR internship)":" (採用 OR インターン OR 仕事体験)";
+ location.href="https://www.google.com/search?q="+encodeURIComponent(`"${q}" ${suffix} 公式`);
+}
+function showSaved(){render();document.getElementById("msg").textContent="登録済みデータを表示中";}
+render();
+</script>
+</body></html>
